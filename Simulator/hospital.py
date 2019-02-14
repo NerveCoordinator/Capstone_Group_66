@@ -6,7 +6,7 @@ RANDOM_SEED = 42
 NUM_DOCTORS = 2 
 HEALTIME = 4
 T_INTER = 2 
-SIM_TIME = 2000
+SIM_TIME = 20
 ARRIVAL_RATE = 0.4
 
 import numpy as np
@@ -33,30 +33,35 @@ class Record(object):
     def new_patient(self):
         self.patients += 1
 
+
+#Adding status to value
     def new_wait(self, wait):
         self.curr_waits.append(wait)
 
+
 class Hospital(object):
+	#HERE WE WILL DEFINE THE ELEMENTS THAT THE HOSPITAL WILL AHVE
     def __init__(self, env, num_doctors, num_beds):
         self.env = env
         self.doctor = simpy.Resource(env, num_doctors)
         self.beds = simpy.Resource(env, num_beds)
 
-    def check_in(self, patient):
+    def check_in(self, patient, status):
         #yield self.env.timeout(WASHTIME)
-        print("Checked " + patient + " in.")
+        print("Checked " + patient + " in with status " + status)
 
-    def heal(self, patient, bed_wait):
+    def heal(self, patient, bed_wait, status):
         yield self.env.timeout(HEALTIME) #+ bed_wait/2)
         print("healed " + patient + " in " +str(HEALTIME) + " seconds")  #+ bed_wait/2) + " seconds")
 
-def patient(env, rec, name, hos):
+def patient(env, rec, name, hos, status):
     print('%s enters the hospital at %.2f.' % (name, env.now))
     rec.new_patient()
     arrive = env.now
     bed_arrive = 0
     doctor_arrive = 0
     heal_arrive = 0
+    status = 0
 
     bed_wait = 0
     heal_wait = 0    
@@ -71,7 +76,7 @@ def patient(env, rec, name, hos):
             yield doctor_request
             doctor_arrive = env.now
             doctor_wait = env.now - bed_arrive
-            yield env.process(hos.heal(name, bed_arrive))
+            yield env.process(hos.heal(name, bed_arrive, 0))
             heal_wait = env.now - doctor_arrive
             heal_arrive = env.now
     total_wait = int(bed_wait + doctor_wait +heal_wait )
@@ -81,7 +86,7 @@ def patient(env, rec, name, hos):
     print('Bed wait: %i doctor wait %i heal wait: %i '  % (bed_wait, doctor_wait, heal_wait))
     print('%s leaves the hospital at %.2f.'  % (name, env.now))
 
-def setup(env, rec, num_doctors, num_beds):
+def setup(env, rec, num_doctors, num_beds, previous_patients):
 
     hospital = Hospital(env, num_doctors, num_beds)
     rec.new_history(num_doctors, num_beds)
@@ -93,22 +98,27 @@ def setup(env, rec, num_doctors, num_beds):
         print(str(sin_value) + " " + (str(next_arrival_time)  ))
         yield env.timeout(next_arrival_time)
         i += 1
-        env.process(patient(env, rec, 'patient %d' % i, hospital))
+        env.process(patient(env, rec, 'patient %d' % i, hospital, 0))
 
-def simulate(num_doctors, num_beds, rec, sim_time):
+def simulate(num_doctors, num_beds, rec, sim_time, previous_patients):
 	print('Hospital')
 	random.seed(RANDOM_SEED)  
 
 	env = simpy.Environment()
-	env.process(setup(env, rec, num_doctors, num_beds))
-
+	env.process(setup(env, rec, num_doctors, num_beds, previous_patients))
+	
+	print("*")
+	print("Starting  Doctors: " + str(num_doctors) + " Beds: " + str(num_beds))
 	env.run(until=sim_time)
-	print(str(num_doctors) + " " + str(num_beds))
+	print("Finishing Doctors: " + str(num_doctors) + " Beds: " + str(num_beds))
+	print("*")
 
+
+#Run the hosptial simulation for doctor 1-4 and bed values 1-4
 rec = Record()
 for i in range(1,4,1):
     for j in range(1,4,1):
-        simulate(j, i, rec, SIM_TIME)
+        simulate(j, i, rec, SIM_TIME, [])
 
 for thing in rec.history:
     print(thing)
