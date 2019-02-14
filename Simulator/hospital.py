@@ -94,8 +94,8 @@ class Hospital(object):
         yield self.env.timeout(HEALTIME) #+ bed_wait/2)
         print("healed " + patient + " in " +str(HEALTIME) + " seconds")  #+ bed_wait/2) + " seconds")
 
-    #def handle_patient(env, rec, name, hos):
-
+    def handle_patient(env, rec, name, hos):
+'''
 	def patient(env, rec, name, hos, status):
 	    print('%s enters the hospital at %.2f.' % (name, env.now))
 	    rec.new_patient()
@@ -127,7 +127,7 @@ class Hospital(object):
 	    print('Arrive: %i bed_arrive: %i doctor_arrive: %i heal_arrive: %i' % (arrive, bed_arrive, doctor_arrive,heal_arrive))
 	    print('Bed wait: %i doctor wait %i heal wait: %i '  % (bed_wait, doctor_wait, heal_wait))
 	    print('%s leaves the hospital at %.2f.'  % (name, env.now))
-
+'''
 '''
 class patient(object)
 	def __init__(self, env, status, arrival_time)
