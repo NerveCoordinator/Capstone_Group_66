@@ -46,6 +46,19 @@ ESI4_TIME_SD  = 110
 ESI5_AVG_TIME = 166
 ESI5_TIME_SD  = 93
 
+ESI_CHANCE   = [ESI1, ESI2, ESI3, ESI4, ESI5]
+ESI_CONSUME  = [[ESI1_CONSUME_0, ESI1_CONSUME_1, ESI1_CONSUME_M],
+				[ESI2_CONSUME_0, ESI2_CONSUME_1, ESI2_CONSUME_M],
+				[ESI3_CONSUME_0, ESI3_CONSUME_1, ESI3_CONSUME_M],
+				[ESI4_CONSUME_0, ESI4_CONSUME_1, ESI4_CONSUME_M],
+				[ESI5_CONSUME_0, ESI5_CONSUME_1, ESI5_CONSUME_M]]
+ESI_TIME     = [[ESI1_AVG_TIME, ESI1_TIME_SD],
+				[ESI2_AVG_TIME, ESI2_TIME_SD],
+				[ESI3_AVG_TIME, ESI3_TIME_SD],
+				[ESI4_AVG_TIME, ESI4_TIME_SD],
+				[ESI5_AVG_TIME, ESI5_TIME_SD]]
+
+
 
 import numpy as np
 from numpy.random import RandomState
@@ -95,6 +108,7 @@ class Hospital(object):
         print("healed " + patient + " in " +str(HEALTIME) + " seconds")  #+ bed_wait/2) + " seconds")
 
     def handle_patient(env, rec, name, hos):
+
 '''
 	def patient(env, rec, name, hos, status):
 	    print('%s enters the hospital at %.2f.' % (name, env.now))
@@ -128,25 +142,70 @@ class Hospital(object):
 	    print('Bed wait: %i doctor wait %i heal wait: %i '  % (bed_wait, doctor_wait, heal_wait))
 	    print('%s leaves the hospital at %.2f.'  % (name, env.now))
 '''
-'''
-class patient(object)
-	def __init__(self, env, status, arrival_time)
-'''
+
+class patient(object):
+	def __init__(self, env, status, consume, time_to_heal, arrival_time):
+		self.env = env
+		self.status = status
+		self.consume = consume
+		self.time_to_heal = time_to_heal
+		self.arrival_time = arrival_time
+
+class patient_generator(object):
+	def __init__(self, env):
+		self.env = env
+		self.esi_chance  = ESI_CHANCE
+		self.esi_consume = ESI_CONSUME
+		self.esi_time    = ESI_TIME
+
+	def make_patient(self, env):
+		pat_esi = get_status()
+		pat_com = get_consume(pat_esi)
+		pat_tim = get_time(pat_esi)
+		new_pat = patient(env, pat_esi, pat_com, pat_tim, env.now())
+		return (new_pat)
+
+	#The esi status of the patient upon them entering the hospital
+	def get_status(self, env):
+		i = 5
+		while(i > 1):
+			if(self.esi_chance[i - 1] < random.uniform((1,100), 2)):
+				return i
+			i - 1
+		return 1
+
+	#The amount of resources that the patient will consume during their visit
+	def get_consume(self, env, esi):
+		i = 3
+		while(i > 1):
+			if(self.esi_consume[esi - 1][i - 1] < random.uniform((1,100), 2)):
+				return i
+			i - 1
+		return (self.esi_consume[esi - 1][0])
+
+	#How much time that the patient will need in the bed in order to be discharged from the ER
+	def get_time(self, env, esi):
+		return (self.esi_time[esi - 1][0] + self.esi_time[esi - 1][1] * random.uniform((.5, 1.5), 3))
+
 
 def setup(env, rec, num_doctors, num_beds, previous_patients):
 
     hospital = Hospital(env, num_doctors, num_beds)
     rec.new_history(num_doctors, num_beds)
+    patient_generator(env)
 
     #This is where we will run the simulation loop
     i = 0
     while True:
+
+    	'''
         sin_value = (math.fabs(math.sin(env.now/200)))
         next_arrival_time =  sin_value * prng.exponential(1.0 / ARRIVAL_RATE) + 1
         print(str(sin_value) + " " + (str(next_arrival_time)  ))
         yield env.timeout(next_arrival_time)
         i += 1
         env.process(patient(env, rec, 'patient %d' % i, hospital, 0))
+		'''
 
 def simulate(num_doctors, num_beds, rec, sim_time, previous_patients):
 	print('Hospital')
@@ -178,10 +237,8 @@ Setup:
 	Takes basic inputs from simulate
 	Initializes the Hospital 
 	Randomly Generate patients for hospital forever
-
-
-
 '''
+
 rec = Record()
 for i in range(1,4,1):
     for j in range(1,4,1):
