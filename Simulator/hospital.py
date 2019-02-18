@@ -6,7 +6,7 @@ RANDOM_SEED = 42
 NUM_DOCTORS = 2 
 HEALTIME = 4
 T_INTER = 2 
-SIM_TIME = 720 #Goal is 12 hour window
+SIM_TIME = 720#720 #Goal is 12 hour window
 ARRIVAL_RATE = 0.4
 
 #WITHIOUT THE USE OF PREDICTOR DATA, HERE IS THE HOSPITAL METRICS WE WILL USE:
@@ -62,7 +62,7 @@ ESI_TIME	 = [[ESI1_AVG_TIME, ESI1_TIME_SD],
 
 import numpy as np
 from numpy.random import RandomState
-RNG_SEED = 6354
+RNG_SEED = 800
 prng = RandomState(RNG_SEED)
 
 class Record(object):
@@ -111,7 +111,7 @@ class Hospital(object):
 				i += 1
 		if(i == arr_len):
 			self.patients.append(patient)
-		print("Waiting	Patient " + str(patient.id) + " Status = " + str(patient.status) + 
+		print("Waiting	Patient    " + str(patient.id) + " Status = " + str(patient.status) + 
 			" at time: " + str(env.now)) 
 
 
@@ -144,6 +144,7 @@ class Hospital(object):
 	#Will add new patients to beds if they are avalible
 	def add_to_beds(self, env):
 		arr_len = len(self.bed_contents)
+		j = 0
 		while(arr_len < self.beds and len(self.patients) > 0):
 			cur_patient_esi = self.patients[0].status
 			i = 0
@@ -152,9 +153,8 @@ class Hospital(object):
 			while(i < arr_len):
 				if(self.bed_contents[i].status < cur_patient_esi): 
 					#Found spot to insert new patient into bed
-					self.bed_contents.insert(i, self.patients[0].pop())
-					print("Admitted   Patient " + str(self.bed_contents[i].id) + " Status = " + str(self.bed_contents[i].status) + 
-						" at time: " + str(env.now))
+					self.bed_contents.insert(i, self.patients.pop(0))
+					j = i
 					arr_len += 1
 					i = arr_len + 1
 				else:
@@ -163,6 +163,10 @@ class Hospital(object):
 			#lowest classified case at the moment
 			if(i == arr_len):
 				self.bed_contents.append(self.patients.pop(0))
+				j = i
+				arr_len += 1
+			print("Admitted   Patient " + str(self.bed_contents[j].id) + " Status = " + str(self.bed_contents[j].status) + 
+				" at time: " + str(env.now))
 
 #IMPORTANT#
 #Currently there is a proplem with how hospital patients are catagorized, currenlty patient 5's will wait
@@ -245,6 +249,7 @@ def setup(env, num_doctors, num_beds, previous_patients):
 		if(patient_chance < 0.0477495):
 			hospital.recieve_patient(env, mafia.make_patient(env))
 		hospital.pass_time(env)
+		yield env.timeout(1)
 		'''
 	sin_value = (math.fabs(math.sin(env.now/200)))
 	next_arrival_time =  sin_value * prng.exponential(1.0 / ARRIVAL_RATE) + 1
@@ -256,7 +261,7 @@ def setup(env, num_doctors, num_beds, previous_patients):
 
 def simulate(num_doctors, num_beds, sim_time, previous_patients):
 	print('Hospital')
-	random.seed(RANDOM_SEED)  
+	#random.seed(RANDOM_SEED)  
 
 	env = simpy.Environment()
 	env.process(setup(env, num_doctors, num_beds, previous_patients))
