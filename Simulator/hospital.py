@@ -91,11 +91,13 @@ class Record(object):
 
 
 class Hospital(object):
-	#HERE WE WILL DEFINE THE ELEMENTS THAT THE HOSPITAL WILL AHVE
+	#HERE WE WILL DEFINE THE ELEMENTS THAT THE HOSPITAL WILL HAVE
     def __init__(self, env, num_doctors, num_beds):
         self.env = env
-        self.doctor = simpy.Resource(env, num_doctors)
-        self.beds = simpy.Resource(env, num_beds)
+        self.doctor = num_doctors
+        self.beds = num_beds
+        self.patients = [] #HERE WE NEED TO IMPLEMENT THE CARRY OVER PATIENTS BETWEEN HOSPITAL DAYS
+      	self.bed_contents = []
 
 
 
@@ -107,7 +109,72 @@ class Hospital(object):
         yield self.env.timeout(HEALTIME) #+ bed_wait/2)
         print("healed " + patient + " in " +str(HEALTIME) + " seconds")  #+ bed_wait/2) + " seconds")
 
-    def handle_patient(env, rec, name, hos):
+    def recieve_patient(self, env, patient):
+    	cur_patient_esi = patient.status
+    	i = 0
+    	arr_len = self.patients.len()
+    	while(i < arr_len):
+    		if(cur_patient_esi < self.patients[i].status):
+    			self.patients.insert(i, patient)
+    			i = arr_len + 1
+    		else:
+    			i += 1
+    	if(i == arr_len):
+    		self.patients.append(patient)
+
+#IMPORTANT#
+#Currently there is a proplem with how hospital patients are catagorized, currenlty patient 5's will wait
+#Forever as other patients of equal status are serviced
+
+    def pass_time(self, env):
+    	#pass_time will be the general function that can be used to sequence a minute
+    	#Checking in on patients:
+    	arr_len = self.bed_contents.len()
+    	if(arr_len > 0):
+    		i = 0
+			d = 0 #Number of doctors in use    		
+    		while(i < arr_len and d < self.doctor):
+    			if(self.bed_contents[i].time_with_doc > 0)
+    				d += 1
+    				self.bed_contents[i].time_with_doc -= 1
+    			i += 1
+    	
+    	#Remove healed patients
+    	if(arr_len > 0):
+    		i = 0
+    		while(i < arr_len):
+    			if(self.bed_contents[i].time_with_doc <= 0 and self.bed_contents[i].time_to_heal <= 0):
+    				self.bed_contents[i].pop(i) #can be recorded if we want
+    			else:
+    				self.bed_contents[i].time_to_heal -= 1 #could overflow if patient waits for eternity 
+    				i += 1
+    				arr_len -= 1
+    	
+    	#Add new patients to beds
+    	while(arr_len < self.beds and self.patients.len() > 0):
+    		cur_patient_esi = self.patients[0].status
+    		i = 0
+    		#find where in bed order the patient belongs and place them there
+    		#Will insert patient in ESI order with 1 being front, 5 beint in back
+    		while(i < arr_len):
+    			if(self.bed_contents[i].status < cur_patient_esi):
+    				#Found spot to insert new patient into bed
+    				self.bed_contents.insert(i, self.patients[0].pop())
+    				arr_len += 1
+    				i = arr_len + 1
+    			else:
+    				i += 1
+
+    		#lowest classified case at the moment
+    		if(i == arr_len):
+    			self.bed_contents.append(self.patients[0].pop())
+
+
+		
+
+
+
+
 
 '''
 	def patient(env, rec, name, hos, status):
@@ -149,7 +216,9 @@ class patient(object):
 		self.status = status
 		self.consume = consume
 		self.time_to_heal = time_to_heal
+		self.time_with_doc = time_to_heal/4 #Using the source http://ugeskriftet.dk/files/scientific_article_files/2018-12/a4558.pdf
 		self.arrival_time = arrival_time
+
 
 class patient_generator(object):
 	def __init__(self, env):
@@ -195,9 +264,16 @@ def setup(env, rec, num_doctors, num_beds, previous_patients):
     patient_generator(env)
 
     #This is where we will run the simulation loop
+    #I'm writing this on 2 assumptions:
+    #Each iteration of the while loop is one minute
+    #Corvallis has the odds of 0.0477495 each minute of a patient showing up to the emergency department.
     i = 0
     while True:
-
+    	patient_chance = random.random()
+    	if(patient_chance < 0.0477495):
+    		new_patient = patient_generator.make_patient(env)
+    		hospital.recieve_patient(new_patient)
+    	hospital.pass_time(env)
     	'''
         sin_value = (math.fabs(math.sin(env.now/200)))
         next_arrival_time =  sin_value * prng.exponential(1.0 / ARRIVAL_RATE) + 1
