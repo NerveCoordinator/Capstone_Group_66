@@ -6,7 +6,7 @@ RANDOM_SEED = 42
 NUM_DOCTORS = 2 
 HEALTIME = 4
 T_INTER = 2 
-SIM_TIME = 720#720 #Goal is 12 hour window
+SIM_TIME = 720 #Goal is 12 hour window
 ARRIVAL_RATE = 0.4
 
 #WITHIOUT THE USE OF PREDICTOR DATA, HERE IS THE HOSPITAL METRICS WE WILL USE:
@@ -98,6 +98,7 @@ class Hospital(object):
 		self.beds = num_beds
 		self.patients = [] #HERE WE NEED TO IMPLEMENT THE CARRY OVER PATIENTS BETWEEN HOSPITAL DAYS
 		self.bed_contents = []
+		self.discharged = 0
 
 	def recieve_patient(self, env, patient):
 		cur_patient_esi = patient.status
@@ -134,7 +135,8 @@ class Hospital(object):
 			while(i < arr_len):
 				if(self.bed_contents[i].time_with_doc <= 0 and self.bed_contents[i].time_to_heal <= 0):
 					print("Discharged Patient " + str(self.bed_contents[i].id) + " Status = " + str(self.bed_contents[i].status) + 
-						" at time: " + str(env.now))					
+						" at time: " + str(env.now))
+					self.discharged += 1					
 					self.bed_contents.pop(i) #can be recorded if we want
 					arr_len -= 1
 				else:
@@ -249,28 +251,25 @@ def setup(env, num_doctors, num_beds, previous_patients):
 		if(patient_chance < 0.0477495):
 			hospital.recieve_patient(env, mafia.make_patient(env))
 		hospital.pass_time(env)
+		if(env.now % 100 == 0):
+			print("\nHOSPITAL CURRENT STATS AT TIME: " + str(env.now))
+			print("PATIENTS WAITING: "  + str(len(hospital.patients)))
+			print("PATIENTS HEALED:  " + str(hospital.discharged) + "\n")
 		yield env.timeout(1)
-		'''
-	sin_value = (math.fabs(math.sin(env.now/200)))
-	next_arrival_time =  sin_value * prng.exponential(1.0 / ARRIVAL_RATE) + 1
-	print(str(sin_value) + " " + (str(next_arrival_time)  ))
-	yield env.timeout(next_arrival_time)
-	i += 1
-	env.process(patient(env, rec, 'patient %d' % i, hospital, 0))
-		'''
+
 
 def simulate(num_doctors, num_beds, sim_time, previous_patients):
-	print('Hospital')
-	#random.seed(RANDOM_SEED)  
+	print('New Hospital')
+	random.seed(RANDOM_SEED)  
 
 	env = simpy.Environment()
 	env.process(setup(env, num_doctors, num_beds, previous_patients))
 	
-	print("*")
+	print("\n*")
 	print("Starting  Doctors: " + str(num_doctors) + " Beds: " + str(num_beds))
 	env.run(until=sim_time)
-	print("Finishing Doctors: " + str(num_doctors) + " Beds: " + str(num_beds))
-	print("*")
+	print("\nFinishing Doctors: " + str(num_doctors) + " Beds: " + str(num_beds))
+	print("*\n")
 
 
 '''
@@ -292,7 +291,7 @@ Setup:
 '''
 
 print("Starting the simulator!")
-for i in range(1,4,1):
-	for j in range(1,4,1):
+for i in range(8,12,1): #beds
+	for j in range(3,5,1): #doctors
 		simulate(j, i, SIM_TIME, [])
 
