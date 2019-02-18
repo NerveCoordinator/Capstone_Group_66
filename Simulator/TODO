@@ -1,0 +1,17 @@
+List of features to implement:
+
+Patient:
+* Resource Consumption of resources
+* Dynamic health of patient (could get worse)
+
+Hospital:
+* Get patient based off of wait time/severity
+* Make doctors more dynamic
+* Record information on patients process
+
+General:
+* Get hospital stats after run
+
+Long Term:
+* Make a gui, patient have loading bars for healing
+* Patients have specific ailments (eyes, bones, etc) and doctors have specializions
