@@ -102,7 +102,7 @@ class Hospital(object):
 	def recieve_patient(self, env, patient):
 		cur_patient_esi = patient.status
 		i = 0
-		arr_len = self.patients.len()
+		arr_len = len(self.patients)
 		while(i < arr_len):
 			if(cur_patient_esi < self.patients[i].status):
 				self.patients.insert(i, patient)
@@ -112,7 +112,7 @@ class Hospital(object):
 		if(i == arr_len):
 			self.patients.append(patient)
 		print("Waiting	Patient " + str(patient.id) + " Status = " + str(patient.status) + 
-			" at time: " + env.now()) 
+			" at time: " + str(env.now)) 
 
 
 	def check_on_patients(self):
@@ -127,22 +127,22 @@ class Hospital(object):
 				i += 1
 	
 	#Will update patient's time and remove "cured" patients
-	def update_patient(self):
+	def update_patient(self, env):
 		arr_len = len(self.bed_contents)
 		if(arr_len > 0):
 			i = 0
 			while(i < arr_len):
 				if(self.bed_contents[i].time_with_doc <= 0 and self.bed_contents[i].time_to_heal <= 0):
 					print("Discharged Patient " + str(self.bed_contents[i].id) + " Status = " + str(self.bed_contents[i].status) + 
-						" at time: " + env.now())					
-					self.bed_contents[i].pop(i) #can be recorded if we want
+						" at time: " + str(env.now))					
+					self.bed_contents.pop(i) #can be recorded if we want
+					arr_len -= 1
 				else:
 					self.bed_contents[i].time_to_heal -= 1 #could overflow if patient waits for eternity 
 					i += 1
-					arr_len -= 1
 	
 	#Will add new patients to beds if they are avalible
-	def add_to_beds(self):
+	def add_to_beds(self, env):
 		arr_len = len(self.bed_contents)
 		while(arr_len < self.beds and len(self.patients) > 0):
 			cur_patient_esi = self.patients[0].status
@@ -154,7 +154,7 @@ class Hospital(object):
 					#Found spot to insert new patient into bed
 					self.bed_contents.insert(i, self.patients[0].pop())
 					print("Admitted   Patient " + str(self.bed_contents[i].id) + " Status = " + str(self.bed_contents[i].status) + 
-						" at time: " + env.now())
+						" at time: " + str(env.now))
 					arr_len += 1
 					i = arr_len + 1
 				else:
@@ -162,7 +162,7 @@ class Hospital(object):
 
 			#lowest classified case at the moment
 			if(i == arr_len):
-				self.bed_contents.append(self.patients[0].pop())
+				self.bed_contents.append(self.patients.pop(0))
 
 #IMPORTANT#
 #Currently there is a proplem with how hospital patients are catagorized, currenlty patient 5's will wait
@@ -171,8 +171,8 @@ class Hospital(object):
 	def pass_time(self, env):
 		#pass_time will be the general function that can be used to sequence a minute
 		self.check_on_patients()
-		self.update_patient()
-		self.add_to_beds()
+		self.update_patient(env)
+		self.add_to_beds(env)
 
 
 
@@ -191,9 +191,9 @@ class patient(object):
 class patient_generator(object):
 	def __init__(self, env):
 		self.env = env
-		self.esi_chance	 = ESI_CHANCE
+		self.esi_chance	    = ESI_CHANCE
 		self.esi_consume	= ESI_CONSUME
-		self.esi_time	   = ESI_TIME
+		self.esi_time	    = ESI_TIME
 		self.total_patients = 0
 
 
@@ -202,7 +202,7 @@ class patient_generator(object):
 		pat_esi = self.get_status(env)
 		pat_com = self.get_consume(env, pat_esi)
 		pat_tim = self.get_time(env, pat_esi)
-		new_pat = self.patient(env, pat_esi, pat_com, pat_tim, env.now(), self.total_patients)
+		new_pat = patient(env, pat_esi, pat_com, pat_tim, env.now, self.total_patients)
 		self.total_patients += 1
 		return (new_pat)
 
@@ -210,29 +210,30 @@ class patient_generator(object):
 	def get_status(self, env):
 		i = 5
 		while(i > 1):
-			if(self.esi_chance[i - 1] < random.uniform((1,100), 2)):
+			if(self.esi_chance[i - 1] < random.uniform(0,100)):
+			#if(ESI_CHANCE[int(i - 1)] < random.uniform(0, 100)):
 				return i
-			i - 1
+			i -= 1
 		return 1
 
 	#The amount of resources that the patient will consume during their visit
 	def get_consume(self, env, esi):
 		i = 3
 		while(i > 1):
-			if(self.esi_consume[esi - 1][i - 1] < random.uniform((1,100), 2)):
+			if(self.esi_consume[esi - 1][i - 1] < random.uniform(0,100)):
 				return i
-			i - 1
+			i -= 1
 		return (self.esi_consume[esi - 1][0])
 
 	#How much time that the patient will need in the bed in order to be discharged from the ER
 	def get_time(self, env, esi):
-		return (self.esi_time[esi - 1][0] + self.esi_time[esi - 1][1] * random.uniform((.5, 1.5), 3))
+		return (self.esi_time[esi - 1][0] + self.esi_time[esi - 1][1] * random.uniform(.5, 1.5))
 
 
 def setup(env, num_doctors, num_beds, previous_patients):
 
 	hospital = Hospital(env, num_doctors, num_beds)
-	patient_generator(env)
+	mafia = patient_generator(env) #JOKE
 
 	#This is where we will run the simulation loop
 	#I'm writing this on 2 assumptions:
@@ -242,8 +243,7 @@ def setup(env, num_doctors, num_beds, previous_patients):
 	while True:
 		patient_chance = random.random()
 		if(patient_chance < 0.0477495):
-			new_patient = patient_generator.make_patient(0, env)
-			hospital.recieve_patient(new_patient)
+			hospital.recieve_patient(env, mafia.make_patient(env))
 		hospital.pass_time(env)
 		'''
 	sin_value = (math.fabs(math.sin(env.now/200)))
@@ -286,7 +286,7 @@ Setup:
 	Randomly Generate patients for hospital forever
 '''
 
-
+print("Starting the simulator!")
 for i in range(1,4,1):
 	for j in range(1,4,1):
 		simulate(j, i, SIM_TIME, [])
