@@ -99,16 +99,6 @@ class Hospital(object):
         self.patients = [] #HERE WE NEED TO IMPLEMENT THE CARRY OVER PATIENTS BETWEEN HOSPITAL DAYS
       	self.bed_contents = []
 
-
-
-    def check_in(self, patient, status):
-        #yield self.env.timeout(WASHTIME)
-        print("Checked " + patient + " in with status " + status)
-
-    def heal(self, patient, bed_wait, status):
-        yield self.env.timeout(HEALTIME) #+ bed_wait/2)
-        print("healed " + patient + " in " +str(HEALTIME) + " seconds")  #+ bed_wait/2) + " seconds")
-
     def recieve_patient(self, env, patient):
     	cur_patient_esi = patient.status
     	i = 0
@@ -128,7 +118,12 @@ class Hospital(object):
 
     def pass_time(self, env):
     	#pass_time will be the general function that can be used to sequence a minute
-    	#Checking in on patients:
+    	check_on_patients()
+    	update_patient()
+    	add_to_beds()
+
+
+    def check_on_patients(self):
     	arr_len = self.bed_contents.len()
     	if(arr_len > 0):
     		i = 0
@@ -138,8 +133,10 @@ class Hospital(object):
     				d += 1
     				self.bed_contents[i].time_with_doc -= 1
     			i += 1
-    	
-    	#Remove healed patients
+    
+    #Will update patient's time and remove "cured" patients
+    def update_patient(self):
+    	arr_len = self.bed_contents.len()
     	if(arr_len > 0):
     		i = 0
     		while(i < arr_len):
@@ -149,17 +146,21 @@ class Hospital(object):
     				self.bed_contents[i].time_to_heal -= 1 #could overflow if patient waits for eternity 
     				i += 1
     				arr_len -= 1
-    	
-    	#Add new patients to beds
+    
+    #Will add new patients to beds if they are avalible
+    def add_to_beds(self):
+    	arr_len = self.bed_contents.len()
     	while(arr_len < self.beds and self.patients.len() > 0):
     		cur_patient_esi = self.patients[0].status
     		i = 0
     		#find where in bed order the patient belongs and place them there
     		#Will insert patient in ESI order with 1 being front, 5 beint in back
     		while(i < arr_len):
-    			if(self.bed_contents[i].status < cur_patient_esi):
+    			if(self.bed_contents[i].status < cur_patient_esi): 
     				#Found spot to insert new patient into bed
     				self.bed_contents.insert(i, self.patients[0].pop())
+    				print("Patient " + str(self.bed_contents[i].id) + " Status = " + str(self.bed_contents[i].status) + 
+    					" at time: " + env.now())
     				arr_len += 1
     				i = arr_len + 1
     			else:
@@ -170,68 +171,35 @@ class Hospital(object):
     			self.bed_contents.append(self.patients[0].pop())
 
 
-		
 
 
-
-
-
-'''
-	def patient(env, rec, name, hos, status):
-	    print('%s enters the hospital at %.2f.' % (name, env.now))
-	    rec.new_patient()
-	    arrive = env.now
-	    bed_arrive = 0
-	    doctor_arrive = 0
-	    heal_arrive = 0
-	    status = 0
-
-	    bed_wait = 0
-	    heal_wait = 0    
-	    total_wait = 0
-
-	    with hos.beds.request() as bed_request:
-	        yield bed_request
-	        bed_arrive = env.now 
-	        bed_wait = env.now - arrive
-	        print('%s gets in a bed at %.2f.' % (name, bed_arrive))
-	        with hos.doctor.request() as doctor_request:
-	            yield doctor_request
-	            doctor_arrive = env.now
-	            doctor_wait = env.now - bed_arrive
-	            yield env.process(hos.heal(name, bed_arrive, 0))
-	            heal_wait = env.now - doctor_arrive
-	            heal_arrive = env.now
-	    total_wait = int(bed_wait + doctor_wait +heal_wait )
-	    rec.new_wait(total_wait)
-
-	    print('Arrive: %i bed_arrive: %i doctor_arrive: %i heal_arrive: %i' % (arrive, bed_arrive, doctor_arrive,heal_arrive))
-	    print('Bed wait: %i doctor wait %i heal wait: %i '  % (bed_wait, doctor_wait, heal_wait))
-	    print('%s leaves the hospital at %.2f.'  % (name, env.now))
-'''
 
 class patient(object):
-	def __init__(self, env, status, consume, time_to_heal, arrival_time):
+	def __init__(self, env, status, consume, time_to_heal, arrival_time, id):
 		self.env = env
 		self.status = status
 		self.consume = consume
 		self.time_to_heal = time_to_heal
 		self.time_with_doc = time_to_heal/4 #Using the source http://ugeskriftet.dk/files/scientific_article_files/2018-12/a4558.pdf
 		self.arrival_time = arrival_time
+		self.id = id
+
 
 
 class patient_generator(object):
 	def __init__(self, env):
 		self.env = env
-		self.esi_chance  = ESI_CHANCE
-		self.esi_consume = ESI_CONSUME
-		self.esi_time    = ESI_TIME
+		self.esi_chance     = ESI_CHANCE
+		self.esi_consume    = ESI_CONSUME
+		self.esi_time       = ESI_TIME
+		self.total_patients = 0
 
 	def make_patient(self, env):
 		pat_esi = get_status()
 		pat_com = get_consume(pat_esi)
 		pat_tim = get_time(pat_esi)
-		new_pat = patient(env, pat_esi, pat_com, pat_tim, env.now())
+		new_pat = patient(env, pat_esi, pat_com, pat_tim, env.now(), self.total_patients)
+		self.total_patients += 1
 		return (new_pat)
 
 	#The esi status of the patient upon them entering the hospital
@@ -257,10 +225,9 @@ class patient_generator(object):
 		return (self.esi_time[esi - 1][0] + self.esi_time[esi - 1][1] * random.uniform((.5, 1.5), 3))
 
 
-def setup(env, rec, num_doctors, num_beds, previous_patients):
+def setup(env, num_doctors, num_beds, previous_patients):
 
     hospital = Hospital(env, num_doctors, num_beds)
-    rec.new_history(num_doctors, num_beds)
     patient_generator(env)
 
     #This is where we will run the simulation loop
@@ -315,10 +282,10 @@ Setup:
 	Randomly Generate patients for hospital forever
 '''
 
-rec = Record()
+
 for i in range(1,4,1):
     for j in range(1,4,1):
-        simulate(j, i, rec, SIM_TIME, [])
+        simulate(j, i, SIM_TIME, [])
 
 for thing in rec.history:
     print(thing)
